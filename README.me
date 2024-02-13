@@ -1,0 +1,167 @@
+org 100h
+
+get_input: ; gets the value to apply factorial
+    LEA SI, prompt_txt
+    CALL print
+    
+    CALL read_int
+    CMP AL, 8
+    JG invalid
+    CMP AL, 1
+    JL invalid
+
+    LEA SI, value
+    MOV BYTE PTR [SI], AL
+    
+    CALL print_newline    
+    JMP calculate
+
+invalid:
+    ; show that the values are invalid
+    CALL print_newline
+    LEA SI, invalid_txt
+    CALL print
+    CALL print_newline
+    JMP get_input
+    
+try_again:
+    ; ask if they want to calculate another factorial
+    CALL print_newline
+    LEA SI, try_again_txt
+    CALL print
+    CALL read
+    CALL print_newline
+    CMP AL, 59h
+    
+    JE get_input
+    CMP AL, 79h
+    JE get_input
+    LEA SI, thank_txt
+    CALL print
+    RET
+
+calculate:
+    ; calls the factorial algorithm and prints the result       
+    CALL factorial
+    LEA SI, result
+    MOV WORD PTR [SI], AX
+    
+    LEA SI, result_txt
+    CALL print
+    
+    MOV AX, 0
+    MOV AL, value
+    CALL print_number
+    
+    LEA SI, is_txt
+    CALL print
+    
+    MOV AX, result
+    CALL print_number
+    
+    JMP try_again
+
+print PROC
+    ; prints a char array terminate by 00
+    ; SI should be set to the starting address of the array
+    PUSH AX
+    PUSH SI
+    MOV AH, 0Eh
+    
+    next_char:
+        CMP BYTE PTR [SI], 0
+        JE end
+        MOV AL, [SI]
+        INT 10h
+        ADD SI, 1
+        JMP next_char
+    
+    end:
+        POP SI
+        POP AX
+        RET
+print ENDP
+
+print_newline PROC
+    ; prints new line by printing CR and LF
+    PUSH SI
+    LEA SI, new_line
+    CALL print
+    POP SI
+    ret
+print_newline ENDP
+
+print_number PROC
+    ; prints a number stored in AX
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+    MOV BX, 10 ; used for last digit of a number
+    MOV CX, 0 ; digits counter
+    
+    next_digit:
+        MOV DX, 0
+        DIV BX
+        ADD DL, 30h ; number to ASCII
+        PUSH DX
+        INC CX
+        CMP AX, 0
+        JNE next_digit
+    
+    print_value:
+        POP DX
+        MOV AH, 0Eh
+        MOV AL, DL
+        INT 10h
+        LOOP print_value
+    
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    RET
+print_number ENDP
+
+read PROC
+    ; gets single input from console
+    MOV AH, 1h
+    INT 21h
+    MOV AH, 0
+    ret
+read ENDP
+
+read_int PROC
+    CALL read
+    SUB AL, 30h ; convert ascii to number
+    RET
+read_int ENDP
+
+factorial PROC
+    ; calculates the factorial in AX, and stores it back to AX
+    PUSH CX
+    PUSH DX
+    MOV CX, AX
+    MOV AX, 1
+    
+    ; loop until there is no number to multiply
+    next:
+        MUL CX 
+        LOOP next
+    POP DX
+    POP CX      
+    RET    
+factorial ENDP
+
+; calculation variables
+value DB 0
+result DW 0
+
+; text variables
+invalid_txt DB "Input should be a positive number and at most 8, please try again!", 0
+prompt_txt DB "Enter number: ", 0
+result_txt DB "The factorial of ", 0
+try_again_txt DB "Do you want to try again? [Y/N] ", 0
+thank_txt DB "Thank you for using this program!", 0
+is_txt DB " is ", 0
+new_line DB 0Dh, 0Ah, 0 
